@@ -1,0 +1,7 @@
+name: gebug
+version: 1.0.0
+main: me.konicai.gebug.Gebug
+author: Konicai
+api-version: 1.19
+depend:
+  - Geyser-Spigot
