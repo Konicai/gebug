@@ -40,7 +40,10 @@ tasks {
     }
     withType<ShadowJar> {
         isEnableRelocation = true
-        relocationPrefix = "$group.${rootProject.name}.shadow"
+        relocationPrefix = "me.konicai.gebug.shadow"
+
+        archiveVersion.set("")
+        archiveClassifier.set("")
     }
     named("build") {
         dependsOn(named("shadowJar"))
