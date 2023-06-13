@@ -126,7 +126,7 @@ public class Gebug extends JavaPlugin {
                 LevelSoundEventPacket packet = new LevelSoundEventPacket();
                 packet.setSound((context.get("name")));
                 packet.setExtraData(context.get("extraData"));
-                packet.setIdentifier(context.get("identifier"));
+                packet.setIdentifier(context.getOrDefault("identifier", ":")); // arguments with default of "" aren't stored i guess
 
                 boolean sent = forAllSessions((session, player) -> {
                     packet.setPosition(Vector3f.from(convertVector(player.getLocation())));
