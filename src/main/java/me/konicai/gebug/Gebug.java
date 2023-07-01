@@ -12,6 +12,9 @@ import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.cloudburstmc.math.vector.Vector3f;
 import org.cloudburstmc.protocol.bedrock.data.LevelEvent;
@@ -21,16 +24,19 @@ import org.cloudburstmc.protocol.bedrock.data.SoundEvent;
 import org.cloudburstmc.protocol.bedrock.packet.LevelEventPacket;
 import org.cloudburstmc.protocol.bedrock.packet.LevelSoundEventPacket;
 import org.cloudburstmc.protocol.bedrock.packet.PlaySoundPacket;
+import org.cloudburstmc.protocol.bedrock.packet.SpawnParticleEffectPacket;
 import org.geysermc.geyser.GeyserImpl;
 import org.geysermc.geyser.session.GeyserSession;
+import org.geysermc.geyser.util.DimensionUtils;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-public class Gebug extends JavaPlugin {
+public class Gebug extends JavaPlugin implements Listener {
 
     private static final Map<String, LevelEventType> LEVEL_EVENT_TYPES = new HashMap<>();
     private static final List<String> LEVEL_EVENT_SUGGESTIONS;
@@ -56,6 +62,8 @@ public class Gebug extends JavaPlugin {
     public void onEnable() {
         geyser = GeyserImpl.getInstance();
         server = getServer();
+
+        server.getPluginManager().registerEvents(this, this);
 
         CommandManager<CommandSender> commandManager;
         try {
@@ -129,7 +137,7 @@ public class Gebug extends JavaPlugin {
                 packet.setIdentifier(context.getOrDefault("identifier", ":")); // arguments with default of "" aren't stored i guess
 
                 boolean sent = forAllSessions((session, player) -> {
-                    packet.setPosition(Vector3f.from(convertVector(player.getLocation())));
+                    packet.setPosition(convertVector(player.getLocation()));
                     session.sendUpstreamPacket(packet);
                 });
 
@@ -138,6 +146,37 @@ public class Gebug extends JavaPlugin {
                 }
             })
         );
+
+        commandManager.command(builder
+            .literal("particle")
+            .argument(StringArgument.of("id"))
+            .handler(context -> {
+                SpawnParticleEffectPacket packet = new SpawnParticleEffectPacket();
+                packet.setIdentifier(context.get("id"));
+                packet.setMolangVariablesJson(Optional.empty());
+
+                boolean sent = forAllSessions((session, player) -> {
+                    packet.setDimensionId(DimensionUtils.javaToBedrock(session.getDimension()));
+                    packet.setPosition(convertVector(player.getLocation()));
+                    session.sendUpstreamPacket(packet);
+                });
+
+                if (!sent) {
+                    context.getSender().sendMessage("No bedrock players found");
+                }
+            })
+        );
+    }
+
+    @EventHandler
+    public void onCommandPreProcess(PlayerCommandPreprocessEvent event) {
+        String command = event.getMessage().trim();
+        String[] args = command.split(" ");
+        if (args.length == 2) {
+            if (args[0].equals("/playsound")) {
+                event.setMessage("%s player %s".formatted(command, event.getPlayer().getName()));
+            }
+        }
     }
 
     private static Vector3f convertVector(Location vector) {
