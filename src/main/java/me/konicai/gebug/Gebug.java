@@ -6,6 +6,7 @@ import cloud.commandframework.arguments.standard.EnumArgument;
 import cloud.commandframework.arguments.standard.FloatArgument;
 import cloud.commandframework.arguments.standard.IntegerArgument;
 import cloud.commandframework.arguments.standard.StringArgument;
+import cloud.commandframework.arguments.standard.StringArrayArgument;
 import cloud.commandframework.execution.CommandExecutionCoordinator;
 import cloud.commandframework.paper.PaperCommandManager;
 import org.bukkit.Location;
@@ -17,10 +18,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.cloudburstmc.math.vector.Vector3f;
+import org.cloudburstmc.protocol.bedrock.data.CameraShakeAction;
+import org.cloudburstmc.protocol.bedrock.data.CameraShakeType;
 import org.cloudburstmc.protocol.bedrock.data.LevelEvent;
 import org.cloudburstmc.protocol.bedrock.data.LevelEventType;
 import org.cloudburstmc.protocol.bedrock.data.ParticleType;
 import org.cloudburstmc.protocol.bedrock.data.SoundEvent;
+import org.cloudburstmc.protocol.bedrock.packet.CameraShakePacket;
 import org.cloudburstmc.protocol.bedrock.packet.LevelEventPacket;
 import org.cloudburstmc.protocol.bedrock.packet.LevelSoundEventPacket;
 import org.cloudburstmc.protocol.bedrock.packet.PlaySoundPacket;
@@ -29,6 +33,7 @@ import org.geysermc.geyser.GeyserImpl;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.util.DimensionUtils;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -166,6 +171,54 @@ public class Gebug extends JavaPlugin implements Listener {
                 }
             })
         );
+
+        commandManager.command(builder
+            .literal("shake")
+            .argument(FloatArgument.of("intensity"))
+            .argument(FloatArgument.of("duration"))
+            .argument(EnumArgument.of(CameraShakeType.class, "type"))
+            .argument(EnumArgument.of(CameraShakeAction.class, "action"))
+            .handler(context -> {
+                float intensity = context.get("intensity");
+                float duration = context.get("duration");
+                CameraShakeType type = context.get("type");
+                CameraShakeAction action = context.get("action");
+
+                forAllSessions((session, player) -> {
+                    CameraShakePacket packet = new CameraShakePacket();
+                    packet.setIntensity(intensity);
+                    packet.setDuration(duration);
+                    packet.setShakeType(type);
+                    packet.setShakeAction(action);
+                    session.sendUpstreamPacket(packet);
+                });
+            }));
+
+        commandManager.command(builder
+            .literal("fog")
+            .literal("add")
+            .argument(StringArrayArgument.of("identifiers", ($, $$) -> Collections.emptyList()))
+            .handler(context -> {
+                String[] ids = context.get("identifiers");
+                forAllSessions((session, player) -> session.sendFog(ids));
+            }));
+
+        commandManager.command(builder
+            .literal("fog")
+            .literal("remove")
+            .argument(StringArrayArgument.optional("identifiers", ($, $$) -> Collections.emptyList()))
+            .handler(context -> {
+                String[] ids = context.getOrDefault("identifiers", new String[0]);
+                forAllSessions((session, player) -> session.removeFog(ids));
+            }));
+
+        commandManager.command(builder
+            .literal("fog")
+            .handler(context -> {
+                forAllSessions((session, player) -> {
+                    player.sendMessage("fog you see: " + session.fogEffects());
+                });
+            }));
     }
 
     @EventHandler

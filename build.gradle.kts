@@ -25,7 +25,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:1.18.26")
     compileOnly("org.projectlombok:lombok:1.18.26")
 
-    compileOnly("org.geysermc.geyser:core:2.1.1-SNAPSHOT") {
+    compileOnly("org.geysermc.geyser:core:2.1.2-SNAPSHOT") {
         exclude("io.netty")
     }
 
