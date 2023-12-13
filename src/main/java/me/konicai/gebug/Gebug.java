@@ -9,9 +9,13 @@ import cloud.commandframework.arguments.standard.StringArgument;
 import cloud.commandframework.arguments.standard.StringArrayArgument;
 import cloud.commandframework.execution.CommandExecutionCoordinator;
 import cloud.commandframework.paper.PaperCommandManager;
+import com.github.steveice10.mc.protocol.data.game.level.notify.GameEvent;
+import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
+import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
+import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -33,18 +37,22 @@ import org.geysermc.geyser.GeyserImpl;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.util.DimensionUtils;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
 public class Gebug extends JavaPlugin implements Listener {
 
     private static final Map<String, LevelEventType> LEVEL_EVENT_TYPES = new HashMap<>();
     private static final List<String> LEVEL_EVENT_SUGGESTIONS;
+
+    private static final Map<String, ClientboundGameEventPacket.Type> GAME_EVENTS = new HashMap<>();
+    private static final List<String> GAME_EVENT_SUGGESTIONS;
 
     static {
         for (LevelEvent event : LevelEvent.values()) {
@@ -57,7 +65,24 @@ public class Gebug extends JavaPlugin implements Listener {
         LEVEL_EVENT_SUGGESTIONS = LEVEL_EVENT_TYPES.keySet()
             .stream()
             .sorted()
-            .collect(Collectors.toList());
+            .toList();
+
+        int i = 0;
+        Class<?> clazz = ClientboundGameEventPacket.class;
+        for (Field field : clazz.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers()) && ClientboundGameEventPacket.Type.class.isAssignableFrom(field.getType())) {
+                try {
+                    // use MCPL enum just for the friendly name - it isn't reobfuscated
+                    GAME_EVENTS.put(GameEvent.from(i++).name(), (ClientboundGameEventPacket.Type) field.get(null));
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        GAME_EVENT_SUGGESTIONS = GAME_EVENTS.keySet()
+            .stream()
+            .sorted()
+            .toList();
     }
 
     private GeyserImpl geyser;
@@ -78,6 +103,29 @@ public class Gebug extends JavaPlugin implements Listener {
         }
 
         Command.Builder<CommandSender> builder = commandManager.commandBuilder("gebug");
+
+        commandManager.command(builder
+            .literal("gamevent")
+            .argument(StringArgument.<CommandSender>builder("event")
+                .withSuggestionsProvider(($, $$) -> GAME_EVENT_SUGGESTIONS)
+                .build())
+            .argument(FloatArgument.optional("value", 0f))
+            .handler(context -> {
+                CommandSender sender = context.getSender();
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage("Not a player.");
+                    return;
+                }
+                ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
+
+                String key = context.get("event");
+                ClientboundGameEventPacket.Type type = GAME_EVENTS.get(key);
+                float value = context.get("value");
+
+
+                ClientboundGameEventPacket packet = new ClientboundGameEventPacket(type, value);
+                serverPlayer.connection.send(packet);
+            }));
 
         commandManager.command(builder
             .literal("playsound")

@@ -3,6 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     java
     id("com.github.johnrengelman.shadow")
+    id("io.papermc.paperweight.userdev") version "1.5.11"
     id("idea")
 }
 
@@ -22,16 +23,17 @@ repositories {
 }
 
 dependencies {
-    annotationProcessor("org.projectlombok:lombok:1.18.26")
-    compileOnly("org.projectlombok:lombok:1.18.26")
+    annotationProcessor("org.projectlombok:lombok:1.18.30")
+    compileOnly("org.projectlombok:lombok:1.18.30")
 
-    compileOnly("org.geysermc.geyser:core:2.1.2-SNAPSHOT") {
+    compileOnly("org.geysermc.geyser:core:2.2.0-SNAPSHOT") {
         exclude("io.netty")
     }
 
-    compileOnly("io.papermc.paper:paper-api:1.19.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
 
-    implementation("cloud.commandframework:cloud-paper:1.8.3")
+    implementation("cloud.commandframework:cloud-paper:1.8.4")
 }
 
 tasks {
@@ -44,6 +46,9 @@ tasks {
 
         archiveVersion.set("")
         archiveClassifier.set("")
+    }
+    assemble {
+        dependsOn(reobfJar)
     }
     named("build") {
         dependsOn(named("shadowJar"))
