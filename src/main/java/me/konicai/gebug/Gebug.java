@@ -14,6 +14,8 @@ import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.Location;
 import org.bukkit.Server;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.CreatureSpawner;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -103,6 +105,19 @@ public class Gebug extends JavaPlugin implements Listener {
         }
 
         Command.Builder<CommandSender> builder = commandManager.commandBuilder("gebug");
+
+        commandManager.command(builder
+            .literal("clearspawners")
+            .senderType(Player.class)
+            .handler(context -> {
+                Player player = (Player) context.getSender();
+                for (BlockState block : player.getChunk().getTileEntities()) {
+                    if (block instanceof CreatureSpawner spawner) {
+                        spawner.setSpawnedType(null);
+                        block.update();
+                    }
+                }
+            }));
 
         commandManager.command(builder
             .literal("gamevent")
